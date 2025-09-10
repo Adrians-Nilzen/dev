@@ -1,19 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    
-    <header></header>
-    
-    <main>
-        <h1>God on World</h1>
-    </main>
-    
-    <footer></footer>
+<html lang="pt-BR">
 
+<head>
+  <meta charset="UTF-8">
+  <title>Verificador de Assinaturas</title>
+</head>
+
+<body>
+
+  <h2>Consultar Assinaturas</h2>
+
+  <input type="text" id="linkInput" placeholder="Cole o link do documento" size="80">
+
+  <button onclick="buscarAssinaturas()">Buscar</button>
+  <br>
+
+  <h3>Assinaturas:</h3>
+
+  <div id="resultado"></div>
+
+  <script>
+    async function buscarAssinaturas() {
+      const linkOriginal = document.getElementById("linkInput").value.trim();
+      if (!linkOriginal) return alert("Cole o link primeiro!");
+
+      // Extrair código do link de consulta
+      const match = linkOriginal.match(/consulta\/([^?\/]+)/);
+      if (!match) return alert("Link inválido!");
+
+      const codigo = match[1];
+      const novoLink = `https://assinadordigitalexterno.praiagrande.sp.gov.br/sign/pades/signers/${codigo}?cv=true`;
+
+      try {
+        // Chamar proxy PHP busca.php
+        const resposta = await fetch(`busca.php?url=${encodeURIComponent(novoLink)}`);
+        if (!resposta.ok) throw new Error(`Erro HTTP: ${resposta.status}`);
+
+        const texto = await resposta.text();
+
+        // A resposta é HTML com <pre>[JSON]</pre>, vamos extrair o JSON de dentro do <pre>
+        const preMatch = texto.match(/<pre>([\s\S]*?)<\/pre>/);
+        if (!preMatch) throw new Error("Resposta inesperada do servidor");
+
+        const jsonStr = preMatch[1];
+        const assinaturas = JSON.parse(jsonStr);
+
+        if (assinaturas.length === 0) {
+          document.getElementById("resultado").innerText = "Nenhum assinante encontrado.";
+          return;
+        }
+
+        // Montar HTML com os assinantes
+        let resultadoHTML = "";
+        assinaturas.forEach(item => {
+          resultadoHTML += `<p><strong>${item.responsavel}</strong> — ${item.signingTime}</p>`;
+        });
+
+        document.getElementById("resultado").innerHTML = resultadoHTML;
+
+      } catch (e) {
+        console.error(e);
+        document.getElementById("resultado").textContent = "Erro ao carregar ou processar os dados.";
+      }
+    }
+  </script>
 </body>
+
 </html>
+
